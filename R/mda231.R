@@ -1,7 +1,7 @@
-#' CRISPR screen data of cell line MD231.
+#' CRISPR screen data of cell line MDA-MB-231.
 #'
 #' A dataset containing the expression data of sgRNAs
-#' in a CRISPR screen experiment of cell line MD231.
+#' in a CRISPR screen experiment of cell line MDA-MB-231.
 #'
 #' @format A data frame with a list of two elements:
 #' \describe{
@@ -9,5 +9,4 @@
 #'   \item{negene}{A list of non-essential genes}
 #' }
 #'
-#' @export
 "mda231"

@@ -4,7 +4,7 @@
 \alias{normalMM}
 \title{Performing empirical Bayes modeling on limma results}
 \usage{
-normalMM(data, theta0)
+normalMM(data, theta0, n.b = 5, d = 10)
 }
 \arguments{
 \item{data}{A numeric matrix containing limma results and log2 gene 
@@ -12,6 +12,11 @@ expression levels that has a column nameed 'lfc' and a column
 named 'exp.level.log2'}
 
 \item{theta0}{Standard deviation of log2 fold changes under permutations}
+
+\item{n.b}{Number of bins, default is 5 bins}
+
+\item{d}{Number of times for fitting mixture model using different 
+starting values, default is 10}
 }
 \value{
 A numeric matrix containing limma results, RNA expression levels,
@@ -20,10 +25,4 @@ A numeric matrix containing limma results, RNA expression levels,
 \description{
 This function perform an empirical Bayes modeling on log fold ratios
 and return the posterior log fold ratios.
-}
-\examples{
-\donttest{
-nmm.fit <- normalMM(data,theta0)
-}
-
 }

@@ -5,7 +5,7 @@
 \title{Calculating gene level p-values using modified robust rank aggregation
 (alpha-RRA method) on sgRNAs' p-values}
 \usage{
-calculateGenePval(pvec, genes, alpha)
+calculateGenePval(pvec, genes, alpha, nperm = 20)
 }
 \arguments{
 \item{pvec}{A numeric vector containing p-values of sgRNAs.}
@@ -14,6 +14,8 @@ calculateGenePval(pvec, genes, alpha)
 to sgRNAs.}
 
 \item{alpha}{A numeric number denoting the alpha cutoff (i.e. 0.05).}
+
+\item{nperm}{Number of permutations, default is 20}
 }
 \value{
 A list with four elements: 1) a list of genes with their p-values; 

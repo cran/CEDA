@@ -3,7 +3,7 @@
 \docType{data}
 \name{mda231}
 \alias{mda231}
-\title{CRISPR screen data of cell line MD231.}
+\title{CRISPR screen data of cell line MDA-MB-231.}
 \format{
 A data frame with a list of two elements:
 \describe{
@@ -16,6 +16,6 @@ mda231
 }
 \description{
 A dataset containing the expression data of sgRNAs
-in a CRISPR screen experiment of cell line MD231.
+in a CRISPR screen experiment of cell line MDA-MB-231.
 }
 \keyword{datasets}

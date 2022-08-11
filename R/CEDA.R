@@ -120,7 +120,7 @@ permuteLimma <- function(data, design, contrast.matrix, nperm) {
 #'   starting values
 #' @return Normal mixture model fit and BIC value of the log-likelihood
 #'
-#' @importFrom mixtools normalMixEM
+#' @importFrom mixtools normalmixEM
 EMFit <- function(x, k0, mean_constr, sd_constr, npara, d0) {
   for (i in 1:d0)
   {
@@ -135,6 +135,17 @@ EMFit <- function(x, k0, mean_constr, sd_constr, npara, d0) {
         EM.fit <- EM.fit.temp
       }
     }
+  }
+  if (k0==3 & (EM.fit$mu[1] > EM.fit$mu[3])) {
+    c1 <- EM.fit$mu[1]
+    EM.fit$mu[1] <- EM.fit$mu[3]
+    EM.fit$mu[3] <- c1
+    c2 <- EM.fit$sigma[1]
+    EM.fit$sigma[1] <- EM.fit$sigma[3]
+    EM.fit$sigma[3] <- c2
+    c3 <- EM.fit$lambda[1]
+    EM.fit$lambda[1] <- EM.fit$lambda[3]
+    EM.fit$lambda[3] <- c3
   }
   BIC <- -2*EM.fit$loglik + npara*log(length(x))
   return(list(EM.fit=EM.fit,BIC=BIC))
@@ -151,28 +162,29 @@ EMFit <- function(x, k0, mean_constr, sd_constr, npara, d0) {
 #'   expression levels that has a column nameed 'lfc' and a column 
 #'   named 'exp.level.log2'
 #' @param theta0 Standard deviation of log2 fold changes under permutations
+#' @param n.b Number of bins, default is 5 bins
+#' @param d Number of times for fitting mixture model using different 
+#'   starting values, default is 10
 #' @return A numeric matrix containing limma results, RNA expression levels,
 #'   posterior log2 fold ratio, log p-values, and estimates of mixture model
-#' @examples
-#' \donttest{
-#' nmm.fit <- normalMM(data,theta0)
-#' }
 #'
 #' @importFrom stats dnorm pnorm
 #'
 #' @export
-normalMM <- function(data,theta0) {
+normalMM <- function(data, theta0, n.b=5, d=10) {
   eta <- 0.5
-  d <- 10
-  n.b <- 5
   mu.mat <- matrix(0,n.b,3)
   sigma.mat <- matrix(0,n.b,3)
   lambda.mat <- matrix(0,n.b,3)
   beta.cutoff.mat <- matrix(0,n.b,2)
   xs <- min(data$exp.level.log2)
   xe <- max(data$exp.level.log2)+0.1
+  binter <- rep(xe,n.b+1)
   bl <- (xe-xs)/(n.b+1)
-  binter <- c(xs,xs+bl,xs+2*bl,xs+3*bl,xs+4*bl,xe)
+  for (b in 1:n.b)
+  {
+    binter[b] <- xs + bl*(b-1)  
+  }
   for(b in 1:n.b)
   {
     data$exp.level.log2.b[(data$exp.level.log2 >= binter[b]) & (data$exp.level.log2 < binter[b+1])] = b
@@ -217,22 +229,21 @@ normalMM <- function(data,theta0) {
       xorder <- sort(EMfit.3mm$EM.fit$x,index=T)$ix
       x.ordered <- x[xorder]
       posterior.xorder <- EMfit.3mm$EM.fit$posterior[xorder,]
-      n1 <- which(posterior.xorder[,1]<posterior.xorder[,2])[1]-1
-      if (length(n1)==0)
+      n1 <- min(which(posterior.xorder[,1]<posterior.xorder[,2]))
+      if (is.na(x.ordered[n1]))
       {
-        x.comp1.cutoff <- min(x.ordered)-1
-      } else
+        x.comp1.cutoff <- -theta0
+      } else 
       {
-        x.comp1.cutoff <- x.ordered[n1]
-      }
-      x.ordered.pos <- x.ordered[x.ordered>0]
-      n3 <- which(posterior.xorder[x.ordered>0,3]>posterior.xorder[x.ordered>0,2])[1]
-      if (length(n3)==0)
+        x.comp1.cutoff <- min(-theta0,x.ordered[n1])
+      } 
+      n3 <- max(which(posterior.xorder[,3]<posterior.xorder[,2]))
+      if (is.na(x.ordered[n3]))
       {
-        x.comp3.cutoff <- max(x.ordered)+1
-      } else
+        x.comp3.cutoff <- theta0
+      } else 
       {
-        x.comp3.cutoff <- x.ordered.pos[n3]
+        x.comp3.cutoff <- max(theta0,x.ordered[n3])
       }
       x.cutoff <- c(x.comp1.cutoff,x.comp3.cutoff)
       null.posterior <- EMfit.3mm$EM.fit$posterior[,2]
@@ -248,205 +259,71 @@ normalMM <- function(data,theta0) {
       posterior.xorder <- EMfit.2mm$EM.fit$posterior[xorder,]
       if(EMfit.2mm$EM.fit$mu[1]<0)
       {
-        n1 <- which(posterior.xorder[,1]<posterior.xorder[,2])[1]-1
-        if (length(n1)==0)
+        n1 <- min(which(posterior.xorder[,1]<posterior.xorder[,2]))
+        if (is.na(x.ordered[n1]))
         {
-          x.comp1.cutoff <- min(x.ordered)-1
-        } else
+          x.comp1.cutoff <- -theta0
+        } else 
         {
-          x.comp1.cutoff <- x.ordered[n1]
-        }
+          x.comp1.cutoff <- min(-theta0,x.ordered[n1])
+        } 
       } else
       {
-        n1 <- which(posterior.xorder[,1]>posterior.xorder[,2])[1]
-        if (length(n1)==0)
+        n1 <- max(which(posterior.xorder[,1]<posterior.xorder[,2]))
+        if (is.na(x.ordered[n1]))
         {
-          x.comp1.cutoff <- max(x.ordered)+1
-        } else
+          x.comp1.cutoff <- theta0
+        } else 
         {
-          x.comp1.cutoff <- x.ordered[n1]
+          x.comp1.cutoff <- max(theta0,x.ordered[n1])
         }
       }
       x.cutoff <- c(x.comp1.cutoff)
       null.posterior <- EMfit.3mm$EM.fit$posterior[,2]
-
+      
       beta.cutoff.mat[b,1] <- x.cutoff
       mu.mat[b,1:2] <- EMfit.2mm$EM.fit$mu
       sigma.mat[b,1:2] <- EMfit.2mm$EM.fit$sigma
       lambda.mat[b,1:2] <- EMfit.2mm$EM.fit$lambda
     }
-    if (b==1) {null.posterior.b1 <- null.posterior}
-    if (b==2) {null.posterior.b2 <- null.posterior}
-    if (b==3) {null.posterior.b3 <- null.posterior}
-    if (b==4) {null.posterior.b4 <- null.posterior}
-    if (b==5) {null.posterior.b5 <- null.posterior}
+    data.b <- data[data$exp.level.log2.b==b,]
+    data.b$null.posterior <- null.posterior
+    
+    if (beta.cutoff.mat[b,1]==0 & beta.cutoff.mat[b,2]==0)
+    {
+      data.b$lfc_posterior <- (data.b$lfc * (sigma.mat[b,2])^2 + mu.mat[b,2] * (data.b$se)^2)/((data.b$se)^2 + (sigma.mat[b,2])^2)
+    }
+    if (beta.cutoff.mat[b,1]<0 & beta.cutoff.mat[b,2]>0)
+    {
+      data.b.comp2 <- data.b[data.b$lfc < beta.cutoff.mat[b,1],]
+      data.b.comp0 <- data.b[data.b$lfc >=  beta.cutoff.mat[b,1] & data.b$lfc <= beta.cutoff.mat[b,2],]
+      data.b.comp1 <- data.b[data.b$lfc > beta.cutoff.mat[b,2],]
+      data.b.comp2$lfc_posterior <- (data.b.comp2$lfc * (sigma.mat[b,1])^2 + mu.mat[b,1] * (data.b.comp2$se)^2)/((data.b.comp2$se)^2 + (sigma.mat[b,1])^2)
+      data.b.comp0$lfc_posterior <- (data.b.comp0$lfc * (sigma.mat[b,2])^2 + mu.mat[b,2] * (data.b.comp0$se)^2)/((data.b.comp0$se)^2 + (sigma.mat[b,2])^2)
+      data.b.comp1$lfc_posterior <- (data.b.comp1$lfc * (sigma.mat[b,3])^2 + mu.mat[b,3] * (data.b.comp1$se)^2)/((data.b.comp1$se)^2 + (sigma.mat[b,3])^2)
+      data.b <- rbind(data.b.comp0,data.b.comp1,data.b.comp2)
+    }
+    if (beta.cutoff.mat[b,1]<0 & beta.cutoff.mat[b,2]==0)
+    {
+      data.b.comp2 <- data.b[data.b$lfc < beta.cutoff.mat[b,1],]
+      data.b.comp0 <- data.b[data.b$lfc >=  beta.cutoff.mat[b,1],]
+      data.b.comp2$lfc_posterior <- (data.b.comp2$lfc * (sigma.mat[b,1])^2 + mu.mat[b,1] * (data.b.comp2$se)^2)/((data.b.comp2$se)^2 + (sigma.mat[b,1])^2)
+      data.b.comp0$lfc_posterior <- (data.b.comp0$lfc * (sigma.mat[b,2])^2 + mu.mat[b,2] * (data.b.comp0$se)^2)/((data.b.comp0$se)^2 + (sigma.mat[b,2])^2)
+      data.b <- rbind(data.b.comp0,data.b.comp2)
+    }
+    if (beta.cutoff.mat[b,1]>0 & beta.cutoff.mat[b,2]==0)
+    {
+      data.b.comp0 <- data.b[data.b$lfc <= beta.cutoff.mat[b,1],]
+      data.b.comp1 <- data.b[data.b$lfc > beta.cutoff.mat[b,1],]
+      data.b.comp0$lfc_posterior <- (data.b.comp0$lfc * (sigma.mat[b,2])^2 + mu.mat[b,2] * (data.b.comp0$se)^2)/((data.b.comp0$se)^2 + (sigma.mat[b,2])^2)
+      data.b.comp1$lfc_posterior <- (data.b.comp1$lfc * (sigma.mat[b,3])^2 + mu.mat[b,3] * (data.b.comp1$se)^2)/((data.b.comp1$se)^2 + (sigma.mat[b,3])^2)
+      data.b <- rbind(data.b.comp0,data.b.comp1)
+    }
+    if (b==1) data.temp <- data.b
+    else data.temp <- rbind(data.temp, data.b)
   }
-  data.b1 <- data[data$exp.level.log2.b==1,]
-  data.b1$null.posterior <- null.posterior.b1
-  data.b2 <- data[data$exp.level.log2.b==2,]
-  data.b2$null.posterior <- null.posterior.b2
-  data.b3 <- data[data$exp.level.log2.b==3,]
-  data.b3$null.posterior <- null.posterior.b3
-  data.b4 <- data[data$exp.level.log2.b==4,]
-  data.b4$null.posterior <- null.posterior.b4
-  data.b5 <- data[data$exp.level.log2.b==5,]
-  data.b5$null.posterior <- null.posterior.b5
-  b <- 1
-  if (beta.cutoff.mat[b,1]==0 & beta.cutoff.mat[b,2]==0)
-  {
-    data.b1$lfc_posterior <- (data.b1$lfc * (sigma.mat[b,2])^2 + mu.mat[b,2] * (data.b1$se)^2)/((data.b1$se)^2 + (sigma.mat[b,2])^2)
-  }
-  if (beta.cutoff.mat[b,1]<0 & beta.cutoff.mat[b,2]>0)
-  {
-    data.b1.comp2 <- data.b1[data.b1$lfc <= beta.cutoff.mat[b,1],]
-    data.b1.comp0 <- data.b1[data.b1$lfc >  beta.cutoff.mat[b,1] & data.b1$lfc < beta.cutoff.mat[b,2],]
-    data.b1.comp1 <- data.b1[data.b1$lfc >= beta.cutoff.mat[b,2],]
-    data.b1.comp2$lfc_posterior <- (data.b1.comp2$lfc * (sigma.mat[b,1])^2 + mu.mat[b,1] * (data.b1.comp2$se)^2)/((data.b1.comp2$se)^2 + (sigma.mat[b,1])^2)
-    data.b1.comp0$lfc_posterior <- (data.b1.comp0$lfc * (sigma.mat[b,2])^2 + mu.mat[b,2] * (data.b1.comp0$se)^2)/((data.b1.comp0$se)^2 + (sigma.mat[b,2])^2)
-    data.b1.comp1$lfc_posterior <- (data.b1.comp1$lfc * (sigma.mat[b,3])^2 + mu.mat[b,3] * (data.b1.comp1$se)^2)/((data.b1.comp1$se)^2 + (sigma.mat[b,3])^2)
-    data.b1 <- rbind(data.b1.comp0,data.b1.comp1,data.b1.comp2)
-  }
-  if (beta.cutoff.mat[b,1]<0 & beta.cutoff.mat[b,2]==0)
-  {
-    data.b1.comp2 <- data.b1[data.b1$lfc <= beta.cutoff.mat[b,1],]
-    data.b1.comp0 <- data.b1[data.b1$lfc >  beta.cutoff.mat[b,1],]
-    data.b1.comp2$lfc_posterior <- (data.b1.comp2$lfc * (sigma.mat[b,1])^2 + mu.mat[b,1] * (data.b1.comp2$se)^2)/((data.b1.comp2$se)^2 + (sigma.mat[b,1])^2)
-    data.b1.comp0$lfc_posterior <- (data.b1.comp0$lfc * (sigma.mat[b,2])^2 + mu.mat[b,2] * (data.b1.comp0$se)^2)/((data.b1.comp0$se)^2 + (sigma.mat[b,2])^2)
-    data.b1 <- rbind(data.b1.comp0,data.b1.comp2)
-  }
-  if (beta.cutoff.mat[b,1]>0 & beta.cutoff.mat[b,2]==0)
-  {
-    data.b1.comp0 <- data.b1[data.b1$lfc < beta.cutoff.mat[b,1],]
-    data.b1.comp1 <- data.b1[data.b1$lfc >= beta.cutoff.mat[b,1],]
-    data.b1.comp0$lfc_posterior <- (data.b1.comp0$lfc * (sigma.mat[b,2])^2 + mu.mat[b,2] * (data.b1.comp0$se)^2)/((data.b1.comp0$se)^2 + (sigma.mat[b,2])^2)
-    data.b1.comp1$lfc_posterior <- (data.b1.comp1$lfc * (sigma.mat[b,3])^2 + mu.mat[b,3] * (data.b1.comp1$se)^2)/((data.b1.comp1$se)^2 + (sigma.mat[b,3])^2)
-    data.b1 <- rbind(data.b1.comp0,data.b1.comp1)
-  }
-  b <- 2
-  if (beta.cutoff.mat[b,1]==0 & beta.cutoff.mat[b,2]==0)
-  {
-    data.b2$lfc_posterior <- (data.b2$lfc * (sigma.mat[b,2])^2 + mu.mat[b,2] * (data.b2$se)^2)/((data.b2$se)^2 + (sigma.mat[b,2])^2)
-  }
-  if (beta.cutoff.mat[b,1]<0 & beta.cutoff.mat[b,2]>0)
-  {
-    data.b2.comp2 <- data.b2[data.b2$lfc <= beta.cutoff.mat[b,1],]
-    data.b2.comp0 <- data.b2[data.b2$lfc >  beta.cutoff.mat[b,1] & data.b2$lfc < beta.cutoff.mat[b,2],]
-    data.b2.comp1 <- data.b2[data.b2$lfc >= beta.cutoff.mat[b,2],]
-    data.b2.comp2$lfc_posterior <- (data.b2.comp2$lfc * (sigma.mat[b,1])^2 + mu.mat[b,1] * (data.b2.comp2$se)^2)/((data.b2.comp2$se)^2 + (sigma.mat[b,1])^2)
-    data.b2.comp0$lfc_posterior <- (data.b2.comp0$lfc * (sigma.mat[b,2])^2 + mu.mat[b,2] * (data.b2.comp0$se)^2)/((data.b2.comp0$se)^2 + (sigma.mat[b,2])^2)
-    data.b2.comp1$lfc_posterior <- (data.b2.comp1$lfc * (sigma.mat[b,3])^2 + mu.mat[b,3] * (data.b2.comp1$se)^2)/((data.b2.comp1$se)^2 + (sigma.mat[b,3])^2)
-    data.b2 <- rbind(data.b2.comp0,data.b2.comp1,data.b2.comp2)
-  }
-  if (beta.cutoff.mat[b,1]<0 & beta.cutoff.mat[b,2]==0)
-  {
-    data.b2.comp2 <- data.b2[data.b2$lfc <= beta.cutoff.mat[b,1],]
-    data.b2.comp0 <- data.b2[data.b2$lfc >  beta.cutoff.mat[b,1],]
-    data.b2.comp2$lfc_posterior <- (data.b2.comp2$lfc * (sigma.mat[b,1])^2 + mu.mat[b,1] * (data.b2.comp2$se)^2)/((data.b2.comp2$se)^2 + (sigma.mat[b,1])^2)
-    data.b2.comp0$lfc_posterior <- (data.b2.comp0$lfc * (sigma.mat[b,2])^2 + mu.mat[b,2] * (data.b2.comp0$se)^2)/((data.b2.comp0$se)^2 + (sigma.mat[b,2])^2)
-    data.b2 <- rbind(data.b2.comp0,data.b2.comp2)
-  }
-  if (beta.cutoff.mat[b,1]>0 & beta.cutoff.mat[b,2]==0)
-  {
-    data.b2.comp0 <- data.b2[data.b2$lfc < beta.cutoff.mat[b,1],]
-    data.b2.comp1 <- data.b2[data.b2$lfc >= beta.cutoff.mat[b,1],]
-    data.b2.comp0$lfc_posterior <- (data.b2.comp0$lfc * (sigma.mat[b,2])^2 + mu.mat[b,2] * (data.b2.comp0$se)^2)/((data.b2.comp0$se)^2 + (sigma.mat[b,2])^2)
-    data.b2.comp1$lfc_posterior <- (data.b2.comp1$lfc * (sigma.mat[b,3])^2 + mu.mat[b,3] * (data.b2.comp1$se)^2)/((data.b2.comp1$se)^2 + (sigma.mat[b,3])^2)
-    data.b2 <- rbind(data.b2.comp0,data.b2.comp1)
-  }
-  b <- 3
-  if (beta.cutoff.mat[b,1]==0 & beta.cutoff.mat[b,2]==0)
-  {
-    data.b3$lfc_posterior <- (data.b3$lfc * (sigma.mat[b,2])^2 + mu.mat[b,2] * (data.b3$se)^2)/((data.b3$se)^2 + (sigma.mat[b,2])^2)
-  }
-  if (beta.cutoff.mat[b,1]<0 & beta.cutoff.mat[b,2]>0)
-  {
-    data.b3.comp2 <- data.b3[data.b3$lfc <= beta.cutoff.mat[b,1],]
-    data.b3.comp0 <- data.b3[data.b3$lfc >  beta.cutoff.mat[b,1] & data.b3$lfc < beta.cutoff.mat[b,2],]
-    data.b3.comp1 <- data.b3[data.b3$lfc >= beta.cutoff.mat[b,2],]
-    data.b3.comp2$lfc_posterior <- (data.b3.comp2$lfc * (sigma.mat[b,1])^2 + mu.mat[b,1] * (data.b3.comp2$se)^2)/((data.b3.comp2$se)^2 + (sigma.mat[b,1])^2)
-    data.b3.comp0$lfc_posterior <- (data.b3.comp0$lfc * (sigma.mat[b,2])^2 + mu.mat[b,2] * (data.b3.comp0$se)^2)/((data.b3.comp0$se)^2 + (sigma.mat[b,2])^2)
-    data.b3.comp1$lfc_posterior <- (data.b3.comp1$lfc * (sigma.mat[b,3])^2 + mu.mat[b,3] * (data.b3.comp1$se)^2)/((data.b3.comp1$se)^2 + (sigma.mat[b,3])^2)
-    data.b3 <- rbind(data.b3.comp0,data.b3.comp1,data.b3.comp2)
-  }
-  if (beta.cutoff.mat[b,1]<0 & beta.cutoff.mat[b,2]==0)
-  {
-    data.b3.comp2 <- data.b3[data.b3$lfc <= beta.cutoff.mat[b,1],]
-    data.b3.comp0 <- data.b3[data.b3$lfc >  beta.cutoff.mat[b,1],]
-    data.b3.comp2$lfc_posterior <- (data.b3.comp2$lfc * (sigma.mat[b,1])^2 + mu.mat[b,1] * (data.b3.comp2$se)^2)/((data.b3.comp2$se)^2 + (sigma.mat[b,1])^2)
-    data.b3.comp0$lfc_posterior <- (data.b3.comp0$lfc * (sigma.mat[b,2])^2 + mu.mat[b,2] * (data.b3.comp0$se)^2)/((data.b3.comp0$se)^2 + (sigma.mat[b,2])^2)
-    data.b3 <- rbind(data.b3.comp0,data.b3.comp2)
-  }
-  if (beta.cutoff.mat[b,1]>0 & beta.cutoff.mat[b,2]==0)
-  {
-    data.b3.comp0 <- data.b3[data.b3$lfc < beta.cutoff.mat[b,1],]
-    data.b3.comp1 <- data.b3[data.b3$lfc >= beta.cutoff.mat[b,1],]
-    data.b3.comp0$lfc_posterior <- (data.b3.comp0$lfc * (sigma.mat[b,2])^2 + mu.mat[b,2] * (data.b3.comp0$se)^2)/((data.b3.comp0$se)^2 + (sigma.mat[b,2])^2)
-    data.b3.comp1$lfc_posterior <- (data.b3.comp1$lfc * (sigma.mat[b,3])^2 + mu.mat[b,3] * (data.b3.comp1$se)^2)/((data.b3.comp1$se)^2 + (sigma.mat[b,3])^2)
-    data.b3 <- rbind(data.b3.comp0,data.b3.comp1)
-  }
-  b <- 4
-  if (beta.cutoff.mat[b,1]==0 & beta.cutoff.mat[b,2]==0)
-  {
-    data.b4$lfc_posterior <- (data.b4$lfc * (sigma.mat[b,2])^2 + mu.mat[b,2] * (data.b4$se)^2)/((data.b4$se)^2 + (sigma.mat[b,2])^2)
-  }
-  if (beta.cutoff.mat[b,1]<0 & beta.cutoff.mat[b,2]>0)
-  {
-    data.b4.comp2 <- data.b4[data.b4$lfc <= beta.cutoff.mat[b,1],]
-    data.b4.comp0 <- data.b4[data.b4$lfc >  beta.cutoff.mat[b,1] & data.b4$lfc < beta.cutoff.mat[b,2],]
-    data.b4.comp1 <- data.b4[data.b4$lfc >= beta.cutoff.mat[b,2],]
-    data.b4.comp2$lfc_posterior <- (data.b4.comp2$lfc * (sigma.mat[b,1])^2 + mu.mat[b,1] * (data.b4.comp2$se)^2)/((data.b4.comp2$se)^2 + (sigma.mat[b,1])^2)
-    data.b4.comp0$lfc_posterior <- (data.b4.comp0$lfc * (sigma.mat[b,2])^2 + mu.mat[b,2] * (data.b4.comp0$se)^2)/((data.b4.comp0$se)^2 + (sigma.mat[b,2])^2)
-    data.b4.comp1$lfc_posterior <- (data.b4.comp1$lfc * (sigma.mat[b,3])^2 + mu.mat[b,3] * (data.b4.comp1$se)^2)/((data.b4.comp1$se)^2 + (sigma.mat[b,3])^2)
-    data.b4 <- rbind(data.b4.comp0,data.b4.comp1,data.b4.comp2)
-  }
-  if (beta.cutoff.mat[b,1]<0 & beta.cutoff.mat[b,2]==0)
-  {
-    data.b4.comp2 <- data.b4[data.b4$lfc <= beta.cutoff.mat[b,1],]
-    data.b4.comp0 <- data.b4[data.b4$lfc >  beta.cutoff.mat[b,1],]
-    data.b4.comp2$lfc_posterior <- (data.b4.comp2$lfc * (sigma.mat[b,1])^2 + mu.mat[b,1] * (data.b4.comp2$se)^2)/((data.b4.comp2$se)^2 + (sigma.mat[b,1])^2)
-    data.b4.comp0$lfc_posterior <- (data.b4.comp0$lfc * (sigma.mat[b,2])^2 + mu.mat[b,2] * (data.b4.comp0$se)^2)/((data.b4.comp0$se)^2 + (sigma.mat[b,2])^2)
-    data.b4 <- rbind(data.b4.comp0,data.b4.comp2)
-  }
-  if (beta.cutoff.mat[b,1]>0 & beta.cutoff.mat[b,2]==0)
-  {
-    data.b4.comp0 <- data.b4[data.b4$lfc < beta.cutoff.mat[b,1],]
-    data.b4.comp1 <- data.b4[data.b4$lfc >= beta.cutoff.mat[b,1],]
-    data.b4.comp0$lfc_posterior <- (data.b4.comp0$lfc * (sigma.mat[b,2])^2 + mu.mat[b,2] * (data.b4.comp0$se)^2)/((data.b4.comp0$se)^2 + (sigma.mat[b,2])^2)
-    data.b4.comp1$lfc_posterior <- (data.b4.comp1$lfc * (sigma.mat[b,3])^2 + mu.mat[b,3] * (data.b4.comp1$se)^2)/((data.b4.comp1$se)^2 + (sigma.mat[b,3])^2)
-    data.b4 <- rbind(data.b4.comp0,data.b4.comp1)
-  }
-  b <- 5
-  if (beta.cutoff.mat[b,1]==0 & beta.cutoff.mat[b,2]==0)
-  {
-    data.b5$lfc_posterior <- (data.b5$lfc * (sigma.mat[b,2])^2 + mu.mat[b,2] * (data.b5$se)^2)/((data.b5$se)^2 + (sigma.mat[b,2])^2)
-  }
-  if (beta.cutoff.mat[b,1]<0 & beta.cutoff.mat[b,2]>0)
-  {
-    data.b5.comp2 <- data.b5[data.b5$lfc <= beta.cutoff.mat[b,1],]
-    data.b5.comp0 <- data.b5[data.b5$lfc >  beta.cutoff.mat[b,1] & data.b5$lfc < beta.cutoff.mat[b,2],]
-    data.b5.comp1 <- data.b5[data.b5$lfc >= beta.cutoff.mat[b,2],]
-    data.b5.comp2$lfc_posterior <- (data.b5.comp2$lfc * (sigma.mat[b,1])^2 + mu.mat[b,1] * (data.b5.comp2$se)^2)/((data.b5.comp2$se)^2 + (sigma.mat[b,1])^2)
-    data.b5.comp0$lfc_posterior <- (data.b5.comp0$lfc * (sigma.mat[b,2])^2 + mu.mat[b,2] * (data.b5.comp0$se)^2)/((data.b5.comp0$se)^2 + (sigma.mat[b,2])^2)
-    data.b5.comp1$lfc_posterior <- (data.b5.comp1$lfc * (sigma.mat[b,3])^2 + mu.mat[b,3] * (data.b5.comp1$se)^2)/((data.b5.comp1$se)^2 + (sigma.mat[b,3])^2)
-    data.b5 <- rbind(data.b5.comp0,data.b5.comp1,data.b5.comp2)
-  }
-  if (beta.cutoff.mat[b,1]<0 & beta.cutoff.mat[b,2]==0)
-  {
-    data.b5.comp2 <- data.b5[data.b5$lfc <= beta.cutoff.mat[b,1],]
-    data.b5.comp0 <- data.b5[data.b5$lfc >  beta.cutoff.mat[b,1],]
-    data.b5.comp2$lfc_posterior <- (data.b5.comp2$lfc * (sigma.mat[b,1])^2 + mu.mat[b,1] * (data.b5.comp2$se)^2)/((data.b5.comp2$se)^2 + (sigma.mat[b,1])^2)
-    data.b5.comp0$lfc_posterior <- (data.b5.comp0$lfc * (sigma.mat[b,2])^2 + mu.mat[b,2] * (data.b5.comp0$se)^2)/((data.b5.comp0$se)^2 + (sigma.mat[b,2])^2)
-    data.b5 <- rbind(data.b5.comp0,data.b5.comp2)
-  }
-  if (beta.cutoff.mat[b,1]>0 & beta.cutoff.mat[b,2]==0)
-  {
-    data.b5.comp0 <- data.b5[data.b5$lfc < beta.cutoff.mat[b,1],]
-    data.b5.comp1 <- data.b5[data.b5$lfc >= beta.cutoff.mat[b,1],]
-    data.b5.comp0$lfc_posterior <- (data.b5.comp0$lfc * (sigma.mat[b,2])^2 + mu.mat[b,2] * (data.b5.comp0$se)^2)/((data.b5.comp0$se)^2 + (sigma.mat[b,2])^2)
-    data.b5.comp1$lfc_posterior <- (data.b5.comp1$lfc * (sigma.mat[b,3])^2 + mu.mat[b,3] * (data.b5.comp1$se)^2)/((data.b5.comp1$se)^2 + (sigma.mat[b,3])^2)
-    data.b5 <- rbind(data.b5.comp0,data.b5.comp1)
-  }
-  data <- rbind(data.b1, data.b2, data.b3, data.b4, data.b5)
+  
+  data <- data.temp
   data$log_p <- log(2)+pnorm(abs(data$lfc_posterior),mean=0,sd=theta0,lower.tail=FALSE,log.p=TRUE)
   data$log_p_noshrink <- log(2)+pnorm(abs(data$lfc),mean=0,sd=theta0,lower.tail=FALSE,log.p=TRUE)
   return(list(data=data,beta.cutoff.mat=beta.cutoff.mat,mu.mat=mu.mat,sigma.mat=sigma.mat,
@@ -466,24 +343,17 @@ normalMM <- function(data,theta0) {
 #'
 #' @return No return value
 #' @importFrom ggplot2 aes_string aes geom_point geom_vline theme theme_bw element_blank xlab ylab
-#'
+#' @importFrom stats p.adjust
+#' 
 #' @export
 scatterPlot <- function(data, fdr, ...) {
-  b <- 6
-  xs <- min(data$exp.level.log2)
-  xe <- max(data$exp.level.log2)+0.1
-  bl <- (xe-xs)/b
-  binter <- c(xs,xs+bl,xs+2*bl,xs+3*bl,xs+4*bl,xe)
-  data.fdr <- data[data$null.posterior<=fdr,]
+  p.fdr <- stats::p.adjust(exp(data$log_p),method="BH")
+  data.fdr <- data[p.fdr<=fdr,] 
   exp.level.log2 <- lfc <- NULL
   ggplot2::ggplot(data, aes(x = exp.level.log2, y = lfc)) +
     geom_point(size=1,alpha=0.2) +
     xlab("log2(gene expression)") + ylab("log2(FC)") +
     geom_point(data=data.fdr,aes(x=exp.level.log2,y=lfc),size=1,alpha=0.2,color="red3") +
-    geom_vline(aes(xintercept=binter[2]),color="cyan") +
-    geom_vline(aes(xintercept=binter[3]),color="cyan") +
-    geom_vline(aes(xintercept=binter[4]),color="cyan") +
-    geom_vline(aes(xintercept=binter[5]),color="cyan") +
     theme_bw() +
     theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 }
@@ -540,12 +410,13 @@ makeRhoNull <- function(n, p, nperm) {
 #' @param genes A character string containing gene names corresponding 
 #'   to sgRNAs.
 #' @param alpha A numeric number denoting the alpha cutoff (i.e. 0.05).
+#' @param nperm Number of permutations, default is 20
 #' @return A list with four elements: 1) a list of genes with their p-values; 
 #'   2) a numeric matrix of rho null, each column corresponding to a different 
 #'   number of sgRNAs per gene; 3)a numeric vector of rho; 4) a numeric vector 
 #'   of number of sgRNAs per gene.
 #' @export
-calculateGenePval <- function(pvec, genes, alpha) {
+calculateGenePval <- function(pvec, genes, alpha, nperm=20) {
   cut.pvec <- pvec <= alpha
   score_vals <- rank(pvec)/length(pvec)
   score_vals[!cut.pvec] <- 1
@@ -554,7 +425,7 @@ calculateGenePval <- function(pvec, genes, alpha) {
                         FUN.VALUE = numeric(1)),
                  genes)
   guides_per_gene <- sort(unique(table(genes)))
-  permutations = 10 * length(unique(genes))
+  permutations = nperm * length(unique(genes))
   rho_nullh <- vapply(guides_per_gene,
                       FUN = makeRhoNull,
                       p = score_vals,
@@ -585,6 +456,89 @@ calculateGeneLFC <- function(lfcs, genes) {
   vapply(split(lfcs, genes), FUN = mean, FUN.VALUE = numeric(1))
 }
 
+
+
+
+
+#' Prepare data for density plot and ridge plot
+#' 
+#' Input a data frame with each gene one row, and geneID, geneLFC, geneFDR as columns. 
+#' This function will stratify genes into five groups based on their FDR levels: <=0.001, (0.001,0.01], 
+#' (0.01,0.05], (0.05,0.5], (0.5,1] 
+#' 
+#' @param data A data frame containing each gene in one row, and at least three columns with geneID, geneLFC, and geneFDR.
+#' @param gene.fdr A numeric variable (column) in the data frame, corresponding to the gene level FDR
+#' @return A data frame based on the original data frame, with an additional column "group" indicating which FDR group this gene belongs to.
+#' @importFrom dplyr arrange mutate %>%
+#' @export
+preparePlotData <- function(data, gene.fdr) {
+  data2 <- data %>%
+    arrange(gene.fdr) %>%
+    mutate(group = ifelse(gene.fdr <= 0.001, "<=0.001", 
+                          ifelse(gene.fdr > 0.001 & gene.fdr <= 0.01, "(0.001,0.01]",
+                                 ifelse(gene.fdr > 0.01 & gene.fdr <= 0.05, "(0.01,0.05]",
+                                        ifelse(gene.fdr > 0.05 & gene.fdr <= 0.5, "(0.05,0.5]", "(0.5,1]")))))
+  data2$fdr_range = factor(data2$group, levels = c("<=0.001", "(0.001,0.01]", "(0.01,0.05]", "(0.05,0.5]", "(0.5,1]"))
+  return(data2)
+}
+
+
+
+#' 2D density contour plot of gene log2 fold ratios against gene expression levels 
+#'
+#' This function generates a scatter plot with 2D density contour of log2 fold ratios of sgRNAs
+#' against the corresponding gene expression levels.
+#' 
+#' @param data A data frame from the output of preparePlotData function
+#' @param ... Other graphical parameters
+#'
+#' @return No return value
+#' @importFrom ggplot2 aes_string xlim ylim aes geom_point stat_density_2d theme theme_classic element_blank xlab ylab
+#' @importFrom ggsci scale_color_nejm
+#' @export
+densityPlot <- function(data, ...) {
+  ..level.. <- NULL
+  exp.level.log2 <- NULL
+  gene_lfc <- NULL
+  fdr_range <- NULL
+  return(
+    ggplot2::ggplot(data, aes(x=exp.level.log2, y=gene_lfc, color=fdr_range)) + 
+    geom_point() + 
+    xlim(0,14) + ylim(-10,5) + 
+    #scale_color_distiller(palette="Spectral", trans = "reverse") +
+    scale_color_nejm() +
+    theme_classic(base_size = 16) +
+    stat_density_2d(aes(fill = ..level..), geom = "polygon")
+  )
+}
+
+
+
+#' Density ridgeline plot of gene expression levels for different FDR groups. 
+#'
+#' This function generates a density ridgeline plot of gene expression levels for different FDR groups.
+#' 
+#' @param data A data frame from the output of preparePlotData function
+#' @param ... Other graphical parameters
+#'
+#' @return No return value
+#' @importFrom ggplot2 aes_string aes theme element_blank xlab ylab scale_fill_manual
+#' @importFrom ggridges stat_density_ridges geom_density_ridges position_points_jitter
+#' @importFrom ggprism theme_prism
+#' @export
+
+ridgePlot <- function(data, ...) {
+  exp.level.log2 <- NULL
+  fdr_range <- NULL
+  ggplot2::ggplot(data, aes(x=exp.level.log2, y=fdr_range, fill=fdr_range)) + geom_density_ridges() +
+    stat_density_ridges(quantile_lines = TRUE, quantiles = c(0.5),
+                        jittered_points = TRUE,
+                        position = position_points_jitter(width = 0.05, height = 0),
+                        point_shape = '|', point_size = 3, point_alpha = 1, alpha = 0.7
+    ) +
+    scale_fill_manual(values = c("#BC3C29FF", "#0072B5FF", "#E18727FF", "#20854EFF", "#7876B1FF")) + #blue,purple,red,yellow,green
+    theme_prism(base_size = 16)
+}
 
 
 
