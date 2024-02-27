@@ -53,6 +53,7 @@ library(dplyr)
 library(ggplot2)
 library(ggsci)
 library(ggprism)
+library(ggridges)
 set.seed(1)
 data("mda231")
 class(mda231)
@@ -185,7 +186,4 @@ Results from CEDA were shown in Figure $2$. The points in the scatter plot were 
 densityPlot(data)
 ```
 
-The density ridgeline plot of CEDA results was shown in Figure $3$. The groups of genes selected by CEDA (FDR<0.05, yellow, blue, and red) showed higher expression median values compared to the rest of genes (purple, green).
-```{r fig3, fig.cap = "Ridge plot of gene expression for different FDR groups"}
-ridgePlot(data)
-```
+The density plot of CEDA results shows that the groups of genes selected by CEDA (FDR<0.05, yellow, blue, and red) showed higher expression median values compared to the rest of genes (purple, green).

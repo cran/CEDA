@@ -508,7 +508,8 @@ densityPlot <- function(data, ...) {
     #scale_color_distiller(palette="Spectral", trans = "reverse") +
     scale_color_nejm() +
     theme_classic(base_size = 16) +
-    stat_density_2d(aes(fill = ..level..), geom = "polygon")
+    stat_density_2d(aes(fill = ..level..), geom = "polygon") + 
+    theme(legend.text.align = 0)
   )
 }
 
@@ -530,14 +531,14 @@ densityPlot <- function(data, ...) {
 ridgePlot <- function(data, ...) {
   exp.level.log2 <- NULL
   fdr_range <- NULL
-  ggplot2::ggplot(data, aes(x=exp.level.log2, y=fdr_range, fill=fdr_range)) + geom_density_ridges() +
+  ggplot2::ggplot(data, aes(x=exp.level.log2, y=fdr_range)) + 
+    geom_density_ridges() +
     stat_density_ridges(quantile_lines = TRUE, quantiles = c(0.5),
                         jittered_points = TRUE,
                         position = position_points_jitter(width = 0.05, height = 0),
                         point_shape = '|', point_size = 3, point_alpha = 1, alpha = 0.7
     ) +
-    scale_fill_manual(values = c("#BC3C29FF", "#0072B5FF", "#E18727FF", "#20854EFF", "#7876B1FF")) + #blue,purple,red,yellow,green
-    theme_prism(base_size = 16)
+    theme_prism(base_size = 16) 
 }
 
 

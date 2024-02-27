@@ -12,6 +12,7 @@ library(dplyr)
 library(ggplot2)
 library(ggsci)
 library(ggprism)
+library(ggridges)
 set.seed(1)
 data("mda231")
 class(mda231)
@@ -85,7 +86,4 @@ data <- preparePlotData(gdata, gdata$gene.fdr)
 
 ## ----fig2, fig.cap = "2D density plot of gene log fold ratios vs. gene expression level for different FDR groups"----
 densityPlot(data)
-
-## ----fig3, fig.cap = "Ridge plot of gene expression for different FDR groups"----
-ridgePlot(data)
 

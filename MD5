@@ -1,13 +1,13 @@
-47c5f9e494e5a9373f56e72ad48e817b *DESCRIPTION
+35fbeaedafd57f193a9d7c92a68617fa *DESCRIPTION
 46312e6e378be12da56c930ec4e20114 *NAMESPACE
-ca3004379d0f0bb23a67e823d12c2f7c *R/CEDA.R
+d2a153b26c9100e512dcf9b0f8188429 *R/CEDA.R
 f42378e3cda4858cf85d5baa8b569d9f *R/mda231.R
 ed6c39437fdb01fc8c775a57a0cf2f02 *README.md
-fdc7f553f89fec16415749432675097c *build/vignette.rds
+0bd27bcf946f91d0cf872966d7d5c7b7 *build/vignette.rds
 8972669d12a7b25357f5039a22699691 *data/mda231.RData
-eeab24e74c2ce39f30106cafd250d0f5 *inst/doc/Userguide.R
-bcefd9c102dd397b1866861cbd29ccd4 *inst/doc/Userguide.Rmd
-c51d342b53f827a16b3e8bef545799c8 *inst/doc/Userguide.pdf
+a724be5896bf5c38727034a53ac9e247 *inst/doc/Userguide.R
+6a5aa726e56c0d5a1e7f22977c54b9f4 *inst/doc/Userguide.Rmd
+5bbd13a09aee2076367fc9fe5e9b85d4 *inst/doc/Userguide.pdf
 c81a59e894d2e9e0d9eb8a732f5e1a6c *man/EMFit.Rd
 d3dcf13338def283a5b5555389f3536e *man/alphaBeta.Rd
 2035dfbdda32b4d854192a450e0878a5 *man/calculateGeneLFC.Rd
@@ -22,4 +22,4 @@ cc0a1081cf91506bc8dfc40c6cc2192e *man/permuteLimma.Rd
 642d1a0627ede2f6ec82b271e2b718bb *man/ridgePlot.Rd
 e09326f51dbfb224d5d30a045fd86adf *man/runLimma.Rd
 a53fab36c9231a85b889f86789da55a1 *man/scatterPlot.Rd
-bcefd9c102dd397b1866861cbd29ccd4 *vignettes/Userguide.Rmd
+6a5aa726e56c0d5a1e7f22977c54b9f4 *vignettes/Userguide.Rmd
